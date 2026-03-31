@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { supabase } from "../../lib/supabase";
 
 /** App Router: max serverless duration (e.g. Vercel) */
 export const maxDuration = 60;
@@ -12,6 +13,55 @@ const openai = new OpenAI({
 
 export async function POST(request: Request) {
   try {
+    // Get auth token from headers
+    const authorization = request.headers.get("authorization") || request.headers.get("Authorization");
+    const token = authorization?.replace("Bearer ", "").trim();
+
+    if (!token) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    // Validate session and get user
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    // Check if user is free or pro
+    // Simplest: we assume app_metadata has 'is_pro' or similar.
+    // You can adapt this as needed based on your schema
+    const isPro =
+      user.app_metadata?.is_pro ||
+      user.user_metadata?.plan === "pro" ||
+      user.user_metadata?.is_pro === true; // backward compatibility
+
+    // If not pro, check daily generations
+    if (!isPro) {
+      // Today's date in UTC, start and end
+      const now = new Date();
+      const utcYear = now.getUTCFullYear();
+      const utcMonth = String(now.getUTCMonth() + 1).padStart(2, "0");
+      const utcDay = String(now.getUTCDate()).padStart(2, "0");
+      const startOfDay = `${utcYear}-${utcMonth}-${utcDay}T00:00:00+00:00`;
+      const endOfDay = `${utcYear}-${utcMonth}-${utcDay}T23:59:59.999+00:00`;
+
+      const { count, error: countError } = await supabase
+        .from("generations")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("created_at", startOfDay)
+        .lte("created_at", endOfDay);
+
+      if (countError) {
+        return NextResponse.json({ error: "Could not verify quota" }, { status: 500 });
+      }
+
+      if ((count ?? 0) >= 5) {
+        return NextResponse.json({ error: "Daily limit reached" }, { status: 403 });
+      }
+    }
+
     const { productName, keyFeatures, targetMarket, lang = "en" } = await request.json();
 
     if (!productName || !keyFeatures || !targetMarket) {
@@ -43,10 +93,24 @@ Keywords: [10 SEO keywords, comma separated]`;
         messages: [{ role: "user", content: prompt }],
         max_tokens: 1500,
       },
-      { timeout: 60000 } // Set API call timeout to 60 seconds
+      { timeout: 60000 }
     );
 
     const listing = response.choices[0]?.message?.content || "";
+
+    // Log the generation (optional but needed if you want to track usage)
+    // Only for free users; if you want to log for all add remove this check
+    if (!isPro) {
+      await supabase.from("generations").insert([
+        {
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+          product_name: productName,
+          lang,
+          // Optionally, add more fields
+        },
+      ]);
+    }
 
     return NextResponse.json({ listing });
   } catch (error: any) {
