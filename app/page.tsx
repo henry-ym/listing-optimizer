@@ -134,6 +134,9 @@ function CardSection({ title, children, canCopy, onCopy }: { title: string, chil
   );
 }
 
+// Checkout/Upgrade URL
+const UPGRADE_URL = "https://www.creem.io/test/payment/prod_4y6VNxRW0tLyqwpYUH5Cip";
+
 /**
  * Custom translation version using Claude API for each tab.
  * On tab change, issue new request (with 'lang' option in the body) if not already cached.
@@ -327,6 +330,16 @@ export default function Home() {
     return null;
   }
 
+  // Check for a recognizable daily limit error to show upgrade UI
+  // You may want to replace this logic if your backend changes the daily limit error message.
+  const isDailyLimitError =
+    typeof error === "string" &&
+    (
+      error.toLowerCase().includes("daily limit") ||
+      error.toLowerCase().includes("quota") ||
+      error.toLowerCase().includes("plan limit")
+    );
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50">
       {/* Header Bar Showing Email + Logout */}
@@ -460,6 +473,31 @@ export default function Home() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
                   </svg>
                   Generating...
+                </div>
+              ) : isDailyLimitError ? (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-md p-4 flex flex-col items-center">
+                  <span>
+                    You’ve reached your daily limit for free generations.
+                    <span className="block mt-1">
+                      To continue, please{" "}
+                      <a
+                        href={UPGRADE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline text-blue-700 font-medium"
+                      >
+                        upgrade your plan
+                      </a>
+                      .
+                    </span>
+                  </span>
+                  <button
+                    className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded transition"
+                    onClick={() => window.open(UPGRADE_URL, "_blank", "noopener,noreferrer")}
+                    type="button"
+                  >
+                    Upgrade
+                  </button>
                 </div>
               ) : error ? (
                 <div className="bg-red-50 border border-red-200 text-red-700 rounded-md p-4">{error}</div>
