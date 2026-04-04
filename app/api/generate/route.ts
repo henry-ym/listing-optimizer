@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { supabase } from "../../lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 
 /** App Router: max serverless duration (e.g. Vercel) */
 export const maxDuration = 60;
@@ -13,24 +13,29 @@ const openai = new OpenAI({
 
 export async function POST(request: Request) {
   try {
-    // Get auth token from headers
+    // Get Authorization header from request
     const authorization = request.headers.get("authorization") || request.headers.get("Authorization");
     const token = authorization?.replace("Bearer ", "").trim();
 
     if (!token) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Validate session and get user
+    // Use createClient for a fresh Supabase client tied to environment config
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+
+    // Verify user's JWT token using Supabase
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check if user is free or pro
-    // Simplest: we assume app_metadata has 'is_pro' or similar.
-    // You can adapt this as needed based on your schema
+    // Assume app_metadata has 'is_pro', or user_metadata.plan === 'pro', or user_metadata.is_pro === true
     const isPro =
       user.app_metadata?.is_pro ||
       user.user_metadata?.plan === "pro" ||
@@ -58,7 +63,10 @@ export async function POST(request: Request) {
       }
 
       if ((count ?? 0) >= 5) {
-        return NextResponse.json({ error: "Daily limit reached" }, { status: 403 });
+        return NextResponse.json(
+          { error: "Daily limit reached. Upgrade to Pro for unlimited generations." },
+          { status: 403 }
+        );
       }
     }
 
@@ -99,7 +107,7 @@ Keywords: [10 SEO keywords, comma separated]`;
     const listing = response.choices[0]?.message?.content || "";
 
     // Log the generation (optional but needed if you want to track usage)
-    // Only for free users; if you want to log for all add remove this check
+    // Only for free users; if you want to log for all remove this check
     if (!isPro) {
       await supabase.from("generations").insert([
         {
