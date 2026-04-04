@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
 
@@ -70,38 +70,9 @@ const UI = {
 // Generation limit settings
 const GEN_LIMIT = 5;
 
-type ParsedSection = { name: string; content: string };
-
 /** Remove ** markdown from display */
 function stripMarkdownBold(s: string): string {
   return s.replace(/\*\*/g, "");
-}
-
-/**
- * Split AI text on Title: / Description: / Bullet Points: / Keywords:
- * (optional ** around labels). Returns null if no section headers found.
- */
-function parseListingSections(raw: string): ParsedSection[] | null {
-  if (!raw || !raw.trim()) return null;
-  const re =
-    /(?:^|\n)\s*(?:\*\*)?\s*(Title|Description|Bullet Points|Keywords)\s*(?:\*\*)?\s*:\s*/gi;
-  const matches: { name: string; contentStart: number; index: number }[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(raw)) !== null) {
-    matches.push({
-      name: m[1],
-      contentStart: m.index + m[0].length,
-      index: m.index,
-    });
-  }
-  if (matches.length === 0) return null;
-  const sections: ParsedSection[] = [];
-  for (let i = 0; i < matches.length; i++) {
-    const end = i + 1 < matches.length ? matches[i + 1].index : raw.length;
-    const content = stripMarkdownBold(raw.slice(matches[i].contentStart, end).trim());
-    sections.push({ name: matches[i].name, content });
-  }
-  return sections;
 }
 
 function sectionCardTitle(
@@ -193,11 +164,6 @@ export default function Dashboard() {
     }
   }, [result, user]);
 
-  const parsedSections = useMemo(
-    () => parseListingSections(result),
-    [result]
-  );
-
   const langs = [
     { code: "en", label: "English" },
     { code: "zh", label: "中文" },
@@ -255,11 +221,34 @@ export default function Dashboard() {
     }
   }
 
+  function parseResult(text: string) {
+    const sections: { title: string; content: string }[] = [];
+    const markers = ["Title:", "Description:", "Bullet Points:", "Keywords:"];
+    const labels = ["Title", "Description", "Bullet Points", "Keywords"];
+    for (let i = 0; i < markers.length; i++) {
+      const start = text.indexOf(markers[i]);
+      if (start === -1) continue;
+      const contentStart = start + markers[i].length;
+      const nextStarts = markers
+        .slice(i + 1)
+        .map(m => text.indexOf(m))
+        .filter(idx => idx > -1);
+      const end = nextStarts.length > 0 ? Math.min(...nextStarts) : text.length;
+      sections.push({
+        title: labels[i],
+        content: text.slice(contentStart, end).trim(),
+      });
+    }
+    return sections;
+  }
+
   if (loading)
     return (
       <div className="flex min-h-screen items-center justify-center"><p>{UI[uiLang].loading}</p></div>
     );
   if (!user) return null;
+
+  const parsedSections = result ? parseResult(result) : [];
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -418,32 +407,35 @@ export default function Dashboard() {
                     {copied.all ? UI[uiLang].copied : UI[uiLang].allCopy}
                   </button>
                 </div>
-                {parsedSections && parsedSections.length > 0 ? (
+                {parsedSections.length > 0 ? (
                   <div className="flex flex-col gap-4">
-                    {parsedSections.map((sec, i) => (
-                      <div
-                        key={`${sec.name}-${i}`}
-                        className="bg-gray-50 rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3"
-                      >
-                        <div className="flex items-center justify-between gap-3 flex-wrap border-b border-gray-200 pb-2">
-                          <h4 className="font-semibold text-blue-800 text-base">
-                            {sectionCardTitle(sec.name, UI[uiLang])}
-                          </h4>
-                          <button
-                            type="button"
-                            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition font-medium shrink-0"
-                            onClick={() => handleCopy(sec.content, `sec-${i}`)}
-                          >
-                            {copied[`sec-${i}`]
-                              ? UI[uiLang].copied
-                              : UI[uiLang].copy}
-                          </button>
+                    {parsedSections.map((sec, i) => {
+                      const displayContent = stripMarkdownBold(sec.content);
+                      return (
+                        <div
+                          key={`${sec.title}-${i}`}
+                          className="bg-gray-50 rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3"
+                        >
+                          <div className="flex items-center justify-between gap-3 flex-wrap border-b border-gray-200 pb-2">
+                            <h4 className="font-semibold text-blue-800 text-base">
+                              {sectionCardTitle(sec.title, UI[uiLang])}
+                            </h4>
+                            <button
+                              type="button"
+                              className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition font-medium shrink-0"
+                              onClick={() => handleCopy(displayContent, `sec-${i}`)}
+                            >
+                              {copied[`sec-${i}`]
+                                ? UI[uiLang].copied
+                                : UI[uiLang].copy}
+                            </button>
+                          </div>
+                          <div className="whitespace-pre-wrap text-base text-gray-800 leading-relaxed font-mono max-h-[min(50vh,400px)] overflow-y-auto">
+                            {displayContent}
+                          </div>
                         </div>
-                        <div className="whitespace-pre-wrap text-base text-gray-800 leading-relaxed font-mono max-h-[min(50vh,400px)] overflow-y-auto">
-                          {sec.content}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="bg-gray-50 rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
