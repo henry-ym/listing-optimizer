@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
 
@@ -25,6 +25,7 @@ const UI = {
     error: "Request failed",
     allCopy: "Copy All",
     resultHeading: "Generated listing",
+    parseFallbackNote: "(Full text — sections could not be parsed)",
     titleCard: "Title",
     descCard: "Description",
     bulletCard: "Bullet Points",
@@ -54,6 +55,7 @@ const UI = {
     error: "请求失败",
     allCopy: "复制全部",
     resultHeading: "生成结果",
+    parseFallbackNote: "（无法解析区块，显示全文）",
     titleCard: "标题",
     descCard: "描述",
     bulletCard: "要点",
@@ -67,6 +69,52 @@ const UI = {
 
 // Generation limit settings
 const GEN_LIMIT = 5;
+
+type ParsedSection = { name: string; content: string };
+
+/** Remove ** markdown from display */
+function stripMarkdownBold(s: string): string {
+  return s.replace(/\*\*/g, "");
+}
+
+/**
+ * Split AI text on Title: / Description: / Bullet Points: / Keywords:
+ * (optional ** around labels). Returns null if no section headers found.
+ */
+function parseListingSections(raw: string): ParsedSection[] | null {
+  if (!raw || !raw.trim()) return null;
+  const re =
+    /(?:^|\n)\s*(?:\*\*)?\s*(Title|Description|Bullet Points|Keywords)\s*(?:\*\*)?\s*:\s*/gi;
+  const matches: { name: string; contentStart: number; index: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(raw)) !== null) {
+    matches.push({
+      name: m[1],
+      contentStart: m.index + m[0].length,
+      index: m.index,
+    });
+  }
+  if (matches.length === 0) return null;
+  const sections: ParsedSection[] = [];
+  for (let i = 0; i < matches.length; i++) {
+    const end = i + 1 < matches.length ? matches[i + 1].index : raw.length;
+    const content = stripMarkdownBold(raw.slice(matches[i].contentStart, end).trim());
+    sections.push({ name: matches[i].name, content });
+  }
+  return sections;
+}
+
+function sectionCardTitle(
+  sectionName: string,
+  ui: (typeof UI)["en"]
+): string {
+  const n = sectionName.trim().toLowerCase();
+  if (n === "title") return ui.titleCard;
+  if (n === "description") return ui.descCard;
+  if (n === "bullet points") return ui.bulletCard;
+  if (n === "keywords") return ui.keywordCard;
+  return stripMarkdownBold(sectionName);
+}
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -144,6 +192,11 @@ export default function Dashboard() {
       setUsage(cnt);
     }
   }, [result, user]);
+
+  const parsedSections = useMemo(
+    () => parseListingSections(result),
+    [result]
+  );
 
   const langs = [
     { code: "en", label: "English" },
@@ -351,10 +404,12 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-              {/* Full AI response (raw text) */}
-              <div className="bg-gray-50 rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+              {/* Copy All + parsed section cards or raw fallback */}
+              <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <h3 className="font-semibold text-blue-900 text-lg">{UI[uiLang].resultHeading}</h3>
+                  <h3 className="font-semibold text-blue-900 text-lg">
+                    {UI[uiLang].resultHeading}
+                  </h3>
                   <button
                     type="button"
                     className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium shrink-0"
@@ -363,9 +418,43 @@ export default function Dashboard() {
                     {copied.all ? UI[uiLang].copied : UI[uiLang].allCopy}
                   </button>
                 </div>
-                <div className="whitespace-pre-wrap text-base text-gray-800 leading-relaxed font-mono border-t border-gray-200 pt-4 max-h-[min(70vh,560px)] overflow-y-auto">
-                  {result}
-                </div>
+                {parsedSections && parsedSections.length > 0 ? (
+                  <div className="flex flex-col gap-4">
+                    {parsedSections.map((sec, i) => (
+                      <div
+                        key={`${sec.name}-${i}`}
+                        className="bg-gray-50 rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3"
+                      >
+                        <div className="flex items-center justify-between gap-3 flex-wrap border-b border-gray-200 pb-2">
+                          <h4 className="font-semibold text-blue-800 text-base">
+                            {sectionCardTitle(sec.name, UI[uiLang])}
+                          </h4>
+                          <button
+                            type="button"
+                            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition font-medium shrink-0"
+                            onClick={() => handleCopy(sec.content, `sec-${i}`)}
+                          >
+                            {copied[`sec-${i}`]
+                              ? UI[uiLang].copied
+                              : UI[uiLang].copy}
+                          </button>
+                        </div>
+                        <div className="whitespace-pre-wrap text-base text-gray-800 leading-relaxed font-mono max-h-[min(50vh,400px)] overflow-y-auto">
+                          {sec.content}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+                    <p className="text-sm text-gray-500 border-b border-gray-200 pb-2">
+                      {UI[uiLang].parseFallbackNote}
+                    </p>
+                    <div className="whitespace-pre-wrap text-base text-gray-800 leading-relaxed font-mono max-h-[min(70vh,560px)] overflow-y-auto">
+                      {stripMarkdownBold(result)}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
