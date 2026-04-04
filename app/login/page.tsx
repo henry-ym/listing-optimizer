@@ -123,6 +123,7 @@ export default function AuthPage() {
             <span className="text-sm font-medium">{t.email}</span>
             <input
               type="email"
+              name="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -135,14 +136,13 @@ export default function AuthPage() {
             <span className="text-sm font-medium">{t.password}</span>
             <input
               type="password"
+              name="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
               disabled={loading}
-              autoComplete={
-                mode === "signup" ? "new-password" : "current-password"
-              }
+              autoComplete="current-password"
             />
           </label>
           {error && (

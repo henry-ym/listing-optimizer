@@ -103,38 +103,44 @@ export default function Dashboard() {
 
   const router = useRouter();
 
-  // Read UI lang from localStorage
+  // Read UI lang from localStorage on mount (default "en" if missing)
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const l = localStorage.getItem("ui-lang");
-      setUiLang(l === "zh" ? "zh" : "en"); // default EN
-    }
+    const stored = localStorage.getItem("ui-lang");
+    setUiLang(stored === "zh" ? "zh" : "en");
   }, []);
 
-  // Save UI lang
+  // Save UI lang on every toggle
   const toggleUiLang = () => {
     const nextLang = uiLang === "en" ? "zh" : "en";
     setUiLang(nextLang);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("ui-lang", nextLang);
-    }
+    localStorage.setItem("ui-lang", nextLang);
   };
 
-  // Auth check
+  // Auth: keep user in sync across navigation; redirect on sign-out
   useEffect(() => {
-    supabase.auth.getSession()
-      .then(({ data }) => {
-        if (data.session?.user) {
-          setUser(data.session.user);
-        } else {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "SIGNED_OUT") {
+          setUser(null);
           router.push("/login");
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-        router.push("/login");
-      });
+        if (event === "SIGNED_IN") {
+          if (session?.user) setUser(session.user);
+          setLoading(false);
+          return;
+        }
+        if (event === "INITIAL_SESSION") {
+          if (session?.user) setUser(session.user);
+          else router.push("/login");
+          setLoading(false);
+          return;
+        }
+        if (session?.user) setUser(session.user);
+      }
+    );
+    return () => subscription.unsubscribe();
   }, [router]);
 
   // Fetch usage counter
@@ -273,6 +279,15 @@ export default function Dashboard() {
           >
             {UI[uiLang].history}
           </a>
+          {/* Upgrade to Pro Button */}
+          <button
+            type="button"
+            className="text-xs font-semibold px-4 py-1.5 rounded-full bg-amber-500 hover:bg-amber-600 text-white shadow transition border border-amber-600"
+            style={{ marginLeft: 8, marginRight: 8 }}
+            onClick={() => window.open("https://www.creem.io/test/payment/prod_4y6VNxRW0tLyqwpYUH5Cip", "_blank")}
+          >
+            Upgrade to Pro
+          </button>
         </div>
         <div className="flex items-center gap-4 shrink-0">
           <button

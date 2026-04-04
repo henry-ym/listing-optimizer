@@ -1,42 +1,96 @@
 "use client";
-import React, { useCallback, Suspense } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "./lib/supabase";
 
-// --------- TEXT RESOURCES FOR LOCALIZATION ---------
-const zh = {
-  nav: {
-    generator: "生成器",
-    history: "历史记录",
-    logout: "退出登录",
-    langToggle: "EN",
-    account: "用户",
-    login: "登录",
-    marketingLangToggle: "EN",
-  },
+const YEAR = new Date().getFullYear();
+
+/** Full marketing page copy — English */
+const TEXT_EN = {
   logo: "AI Listing Optimizer",
-  heading: "AI Listing Optimizer",
-  subtitle: "秒速生成优化后的商品描述",
-  form: {
-    productName: "产品名称",
-    productNamePh: "输入您的产品名称",
-    keyFeatures: "核心卖点",
-    keyFeaturesPh: "逗号分隔或分行输入卖点",
-    targetMarket: "目标市场",
-    targetMarketPh: "说明您的市场/受众",
-    generate: "生成",
-    generating: "生成中…",
+  nav: { login: "Login", dashboard: "Dashboard" },
+  marketHero: {
+    main: "AI-Powered Product Listings in 30 Seconds",
+    sub: "Generate optimized, multi-language product listings for Amazon, Shopify, Etsy and more.\nSave hours of copywriting.",
   },
-  loading: "加载中…",
-  noResult: "暂无结果",
   cta: {
-    startFree: "免费开始",
-    viewPricing: "查看价格",
-    getStarted: "立即使用"
+    startFree: "Start Free",
+    viewPricing: "View Pricing",
   },
+  features: [
+    { title: "AI-Optimized Copy", desc: "Writes converting product descriptions" },
+    { title: "8 Languages", desc: "English, Chinese, Spanish, French, German, Japanese, Korean, Arabic" },
+    { title: "Platform-Specific", desc: "Optimized for Amazon, Shopify, Etsy, eBay" },
+    { title: "SEO Keywords", desc: "Auto-generates high-ranking keywords" },
+    { title: "One-Click Copy", desc: "Copy any section instantly" },
+    { title: "Generation History", desc: "Save and access all past listings" },
+  ],
+  howItWorks: "How It Works",
+  hiwSteps: [
+    { title: "Enter Product Info", content: "Input your product name, features, and target market" },
+    { title: "AI Generates Listing", content: "Our AI creates optimized titles, descriptions, and keywords" },
+    { title: "Copy & Publish", content: "Copy your listing and publish to any platform" },
+  ],
+  demo: {
+    heading: "See It In Action",
+    label: "Example output — generated in seconds",
+    title: "Premium Wireless Bluetooth Earbuds - Active Noise Cancellation & 30-Hour Battery Life",
+    description:
+      "Experience superior sound with our Premium Wireless Bluetooth Earbuds featuring advanced active noise cancellation, crystal-clear audio, and a comfortable, ergonomic fit. Enjoy uninterrupted music for up to 30 hours on a single charge, perfect for travel, workouts, or daily commutes.",
+    bulletTitle: "Bullet Points",
+    bullets: [
+      "Advanced Active Noise Cancellation blocks external sounds",
+      "Up to 30 hours of battery life with charging case",
+      "Sweat & water resistant for workouts and outdoor use",
+      "Touch controls for easy playback and calls",
+      "Seamless Bluetooth 5.3 pairing with all devices",
+    ],
+    keywordsTitle: "Keywords",
+    keywords:
+      "wireless earbuds, bluetooth, active noise cancellation, long battery life, touch control, water resistant, ergonomic, fast charging, stereo sound, sports",
+  },
+  ctaBanner: {
+    ready: "Ready to optimize your listings?",
+    free: "Start free today - no credit card required.",
+    getStarted: "Get Started",
+  },
+  pricing: {
+    title: "Pricing",
+    free: "Free",
+    freeTierSuffix: "/mo",
+    freeDesc: [
+      "<span className='text-blue-500 font-bold'>5</span> generations per day",
+      "<span className='text-blue-500 font-bold'>3</span> supported languages",
+      "History of last <span className='text-blue-500 font-bold'>3</span> listings",
+      "Basic AI model",
+    ],
+    freeBtn: "Start Free",
+    pro: "Pro",
+    proPrice: "$19",
+    proPeriod: "/mo",
+    proDesc: [
+      "<span className='text-blue-700 font-bold'>Unlimited</span> generations",
+      "<span className='text-blue-700 font-bold'>All 8</span> languages",
+      "Full generation history",
+      "Best AI & copywriting",
+      "Priority support",
+    ],
+    proBtn: "Upgrade",
+  },
+  footer: `© ${YEAR} Creem AI, Inc. All rights reserved.`,
+} as const;
+
+/** Full marketing page copy — Chinese */
+const TEXT_ZH = {
+  logo: "AI Listing Optimizer",
+  nav: { login: "登录", dashboard: "控制台" },
   marketHero: {
     main: "30秒内生成AI驱动的商品描述",
     sub: "为亚马逊、Shopify、Etsy等平台生成多语言优化商品描述。\n帮您节省大量文案时间。",
+  },
+  cta: {
+    startFree: "免费开始",
+    viewPricing: "查看价格",
   },
   features: [
     { title: "AI优化文案", desc: "自动撰写高转化商品描述" },
@@ -50,144 +104,62 @@ const zh = {
   hiwSteps: [
     { title: "填写产品信息", content: "输入产品名称、卖点和目标市场" },
     { title: "AI生成描述", content: "AI自动优化标题、描述和关键词" },
-    { title: "复制并发布", content: "复制您的描述，发布到任意电商平台" }
+    { title: "复制并发布", content: "复制您的描述，发布到任意电商平台" },
   ],
+  demo: {
+    heading: "真实效果演示",
+    label: "示例输出 - 数秒内生成",
+    title: "高端无线蓝牙耳机 - 主动降噪 & 30小时续航",
+    description:
+      "体验高保真音质，享受主动降噪、舒适贴合的人体工学设计。配备充电盒，续航长达30小时，无论通勤、锻炼或旅行，时刻陪伴您的音乐时光。",
+    bulletTitle: "卖点",
+    bullets: [
+      "先进主动降噪，有效隔绝环境噪音",
+      "配合充电盒，最长可用30小时",
+      "防汗防水，运动与户外皆宜",
+      "便捷触控，轻松操作音乐与通话",
+      "蓝牙5.3稳定连接，兼容多种设备",
+    ],
+    keywordsTitle: "关键词",
+    keywords:
+      "无线耳机, 蓝牙, 主动降噪, 超长续航, 触控操作, 防水防汗, 人体工学, 快速充电, 立体声, 运动",
+  },
   ctaBanner: {
     ready: "准备优化您的商品描述？",
     free: "即刻免费体验，无需信用卡。",
-    getStarted: "立即开始"
+    getStarted: "立即开始",
   },
   pricing: {
     title: "价格",
     free: "免费",
+    freeTierSuffix: "/月",
     freeDesc: [
       "每天<span className='text-blue-500 font-bold'>5次</span>生成机会",
       "支持<span className='text-blue-500 font-bold'>3</span>种语言",
       "最新<span className='text-blue-500 font-bold'>3</span>条历史记录",
-      "基础AI模型"
+      "基础AI模型",
     ],
     freeBtn: "免费开始",
     pro: "专业版",
     proPrice: "$19",
-    perMonth: "/月",
+    proPeriod: "/月",
     proDesc: [
       "<span className='text-blue-700 font-bold'>无限</span>生成",
       "<span className='text-blue-700 font-bold'>全部8种</span>语言",
       "完整历史记录",
       "更强AI&文案",
-      "优先客服"
+      "优先客服",
     ],
-    proBtn: "升级"
+    proBtn: "升级",
   },
-  footer: `© ${new Date().getFullYear()} Creem AI, Inc. 保留所有权利。`,
-  dailyLimit: "您已达到今日免费生成上限。",
-  upgradeMsg: "如需继续，请升级您的套餐。",
-  upgradeBtn: "升级",
-  error: "生成商品描述失败。",
-  copy: "复制",
-  copied: "已复制！",
-  loadingResult: "生成中…",
-  noResultYet: "暂无结果",
-  tab: { en: "English", zh: "中文", es: "西班牙语" }
-};
+  footer: `© ${YEAR} Creem AI, Inc. 保留所有权利。`,
+} as const;
 
-const en = {
-  nav: {
-    generator: "Generator",
-    history: "History",
-    logout: "Log out",
-    langToggle: "中文",
-    account: "User",
-    login: "Login",
-    marketingLangToggle: "中文",
-  },
-  logo: "AI Listing Optimizer",
-  heading: "AI Listing Optimizer",
-  subtitle: "Generate optimized product listings in seconds",
-  form: {
-    productName: "Product Name",
-    productNamePh: "Your product name",
-    keyFeatures: "Key Features",
-    keyFeaturesPh: "Comma separated or bulleted features",
-    targetMarket: "Target Market",
-    targetMarketPh: "Describe your market/audience",
-    generate: "Generate",
-    generating: "Generating...",
-  },
-  loading: "Loading...",
-  noResult: "No result yet.",
-  cta: {
-    startFree: "Start Free",
-    viewPricing: "View Pricing",
-    getStarted: "Get Started"
-  },
-  marketHero: {
-    main: "AI-Powered Product Listings in 30 Seconds",
-    sub: "Generate optimized, multi-language product listings for Amazon, Shopify, Etsy and more.\nSave hours of copywriting.",
-  },
-  features: [
-    { title: "AI-Optimized Copy", desc: "Writes converting product descriptions" },
-    { title: "8 Languages", desc: "English, Chinese, Spanish, French, German, Japanese, Korean, Arabic" },
-    { title: "Platform-Specific", desc: "Optimized for Amazon, Shopify, Etsy, eBay" },
-    { title: "SEO Keywords", desc: "Auto-generates high-ranking keywords" },
-    { title: "One-Click Copy", desc: "Copy any section instantly" },
-    { title: "Generation History", desc: "Save and access all past listings" }
-  ],
-  howItWorks: "How It Works",
-  hiwSteps: [
-    { title: "Enter Product Info", content: "Input your product name, features, and target market" },
-    { title: "AI Generates Listing", content: "Our AI creates optimized titles, descriptions, and keywords" },
-    { title: "Copy & Publish", content: "Copy your listing and publish to any platform" }
-  ],
-  ctaBanner: {
-    ready: "Ready to optimize your listings?",
-    free: "Start free today - no credit card required.",
-    getStarted: "Get Started"
-  },
-  pricing: {
-    title: "Pricing",
-    free: "Free",
-    freeDesc: [
-      "<span className='text-blue-500 font-bold'>5</span> generations per day",
-      "<span className='text-blue-500 font-bold'>3</span> supported languages",
-      "History of last <span className='text-blue-500 font-bold'>3</span> listings",
-      "Basic AI model"
-    ],
-    freeBtn: "Start Free",
-    pro: "Pro",
-    proPrice: "$19",
-    perMonth: "/mo",
-    proDesc: [
-      "<span className='text-blue-700 font-bold'>Unlimited</span> generations",
-      "<span className='text-blue-700 font-bold'>All 8</span> languages",
-      "Full generation history",
-      "Best AI & copywriting",
-      "Priority support"
-    ],
-    proBtn: "Upgrade"
-  },
-  footer: `© ${new Date().getFullYear()} Creem AI, Inc. All rights reserved.`,
-  dailyLimit: "You’ve reached your daily limit for free generations.",
-  upgradeMsg: "To continue, please upgrade your plan.",
-  upgradeBtn: "Upgrade",
-  error: "Failed to generate product listing.",
-  copy: "Copy",
-  copied: "Copied!",
-  loadingResult: "Generating...",
-  noResultYet: "No result yet.",
-  tab: { en: "English", zh: "中文", es: "Español" }
-};
+type LandingCopy = typeof TEXT_EN | typeof TEXT_ZH;
 
 const UPGRADE_URL = "https://www.creem.io/test/payment/prod_4y6VNxRW0tLyqwpYUH5Cip";
 
-/** `lang` URL param: `zh` → Chinese UI; missing, `en`, or other → English. */
-function langFromSearchParams(searchParams: { get: (name: string) => string | null }): "en" | "zh" {
-  const v = searchParams.get("lang");
-  if (v === "zh") return "zh";
-  return "en";
-}
-
-/** Icons align with `en.features` / `zh.features` order (language-neutral). */
+/** Icons align with `features` order (language-neutral). */
 const MARKETING_FEATURE_ICONS: React.ReactNode[] = [
   (
     <svg className="h-10 w-10 mb-3 text-blue-500" fill="none" viewBox="0 0 24 24">
@@ -226,19 +198,43 @@ const MARKETING_FEATURE_ICONS: React.ReactNode[] = [
   ),
 ];
 
-// --------- Marketing Landing Page ---------
+// DemoCard displays a static mockup of AI output. Text adapts for language.
+function DemoCard({ lang }: { lang: "en" | "zh" }) {
+  const demo = lang === "zh" ? TEXT_ZH.demo : TEXT_EN.demo;
+
+  return (
+    <div className="w-full max-w-2xl mx-auto bg-white border border-blue-200 rounded-2xl shadow-lg p-8 mb-4">
+      <div className="mb-4">
+        <div className="text-lg font-bold text-blue-700 mb-2">{demo.title}</div>
+      </div>
+      <div className="mb-5 text-gray-800">{demo.description}</div>
+      <div className="mb-3 font-semibold text-gray-700">{demo.bulletTitle}</div>
+      <ul className="mb-5 pl-5 list-disc text-gray-700 space-y-1">
+        {demo.bullets.map((bp, i) => (
+          <li key={i}>{bp}</li>
+        ))}
+      </ul>
+      <div className="mb-1 font-semibold text-gray-700">{demo.keywordsTitle}</div>
+      <div className="text-blue-700 text-sm break-words">{demo.keywords}</div>
+    </div>
+  );
+}
+
 function MarketingLanding({
+  copy,
   lang,
-  handleSwitchLang,
+  onToggleLang,
+  loggedIn,
 }: {
+  copy: LandingCopy;
   lang: "en" | "zh";
-  handleSwitchLang: () => void;
+  onToggleLang: () => void;
+  loggedIn: boolean;
 }) {
-  const t = lang === "zh" ? zh : en;
+  const t = copy;
 
   return (
     <>
-      {/* Simple Fixed Top Nav with Login & Lang */}
       <nav
         className="fixed top-0 left-0 w-full z-50 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-8"
         style={{ minHeight: 56 }}
@@ -261,29 +257,28 @@ function MarketingLanding({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              handleSwitchLang();
+              onToggleLang();
             }}
           >
             {lang === "en" ? "中文" : "EN"}
           </button>
           <Link
-            href="/login"
+            href={loggedIn ? "/dashboard" : "/login"}
             className="py-2 px-4 rounded bg-blue-600 text-white font-bold hover:bg-blue-700 transition"
           >
-            {t.nav.login}
+            {loggedIn ? t.nav.dashboard : t.nav.login}
           </Link>
         </div>
       </nav>
 
       <main className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-100 text-gray-900 pt-16 sm:pt-[72px]">
-        {/* Hero Section */}
         <section className="w-full bg-gradient-to-br from-blue-600 to-blue-800 text-white pt-24 px-4 pb-16 mb-16">
           <div className="max-w-3xl mx-auto text-center">
             <h1
               className="text-5xl sm:text-6xl md:text-7xl font-black mb-8"
               style={{
                 textShadow:
-                  "0 2px 12px rgba(22,41,120,0.18), 0 4px 44px rgba(19,32,105,0.18), 0 0px 1px #000A, 0 1px 2px #2224"
+                  "0 2px 12px rgba(22,41,120,0.18), 0 4px 44px rgba(19,32,105,0.18), 0 0px 1px #000A, 0 1px 2px #2224",
               }}
             >
               {t.marketHero.main}
@@ -307,7 +302,6 @@ function MarketingLanding({
             </div>
           </div>
         </section>
-        {/* Feature Cards */}
         <section className="max-w-5xl mx-auto -mt-16 md:-mt-20">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 px-4">
             {t.features.map((f, i) => (
@@ -319,7 +313,6 @@ function MarketingLanding({
             ))}
           </div>
         </section>
-        {/* How It Works */}
         <section className="max-w-4xl mx-auto px-4 py-12 my-16 bg-white rounded-3xl shadow-md flex flex-col">
           <h2 className="font-extrabold text-2xl sm:text-3xl text-center mb-10 text-blue-700">
             {t.howItWorks}
@@ -331,17 +324,27 @@ function MarketingLanding({
                   <span className="text-3xl font-black text-blue-800">{idx + 1}</span>
                 </div>
                 <div className="font-semibold text-lg mb-2">{step.title}</div>
-                <div className="text-gray-600 text-center text-base" style={{ whiteSpace: "pre-line" }}>{step.content}</div>
+                <div className="text-gray-600 text-center text-base" style={{ whiteSpace: "pre-line" }}>
+                  {step.content}
+                </div>
               </div>
             ))}
           </div>
         </section>
-        {/* CTA Banner */}
+        {/* DEMO SECTION - Start */}
+        <section className="max-w-4xl mx-auto w-full px-4 py-10 mb-4 flex flex-col items-center">
+          <h2 className="font-extrabold text-2xl sm:text-3xl text-blue-700 text-center mb-7">
+            {(lang === "zh" ? TEXT_ZH.demo.heading : TEXT_EN.demo.heading)}
+          </h2>
+          <DemoCard lang={lang} />
+          <div className="text-gray-400 text-sm text-center mt-2 mb-0" style={{ letterSpacing: "0.01em" }}>
+            {(lang === "zh" ? TEXT_ZH.demo.label : TEXT_EN.demo.label)}
+          </div>
+        </section>
+        {/* DEMO SECTION - End */}
         <section className="w-full bg-gradient-to-br from-blue-600 to-blue-700 text-white py-12 px-4 my-12">
           <div className="max-w-3xl mx-auto text-center flex flex-col items-center">
-            <h2 className="text-2xl sm:text-3xl font-extrabold mb-2">
-              {t.ctaBanner.ready}
-            </h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold mb-2">{t.ctaBanner.ready}</h2>
             <p className="text-lg mb-8 text-blue-100 font-medium">{t.ctaBanner.free}</p>
             <a
               href="/login"
@@ -351,30 +354,33 @@ function MarketingLanding({
             </a>
           </div>
         </section>
-        {/* Pricing Section */}
         <section className="max-w-4xl mx-auto px-4 mb-20">
           <h2 className="font-extrabold text-2xl sm:text-3xl text-center mb-10 text-blue-700">
             {t.pricing.title}
           </h2>
           <div className="flex flex-col md:flex-row justify-center gap-8">
-            {/* Free */}
             <div className="flex-1 bg-white rounded-2xl shadow-lg border-2 border-blue-200 p-8 flex flex-col items-center text-center">
               <div className="text-blue-600 font-extrabold text-xl mb-2">{t.pricing.free}</div>
               <div className="text-4xl font-extrabold mb-2">
-                $0 <span className="text-xl font-medium text-gray-500">{lang === "zh" ? "/月" : "/mo"}</span>
+                $0 <span className="text-xl font-medium text-gray-500">{t.pricing.freeTierSuffix}</span>
               </div>
               <ul className="mt-4 mb-8 flex-1 text-left text-base text-gray-700 w-full space-y-2">
                 {t.pricing.freeDesc.map((desc, idx) => (
                   <li key={idx} dangerouslySetInnerHTML={{ __html: desc }} />
                 ))}
               </ul>
-              <a href="/login" className="w-full block bg-blue-600 text-white font-bold rounded-full px-6 py-3 mt-auto hover:bg-blue-700 transition">{t.pricing.freeBtn}</a>
+              <a
+                href="/login"
+                className="w-full block bg-blue-600 text-white font-bold rounded-full px-6 py-3 mt-auto hover:bg-blue-700 transition"
+              >
+                {t.pricing.freeBtn}
+              </a>
             </div>
-            {/* Pro */}
             <div className="flex-1 bg-blue-50 rounded-2xl shadow-xl border-2 border-blue-500 p-8 flex flex-col items-center text-center scale-105">
               <div className="text-blue-700 font-extrabold text-xl mb-2">{t.pricing.pro}</div>
               <div className="text-4xl font-extrabold mb-2">
-                {t.pricing.proPrice} <span className="text-xl font-medium text-gray-600">{lang === "zh" ? "/月" : t.pricing.perMonth}</span>
+                {t.pricing.proPrice}{" "}
+                <span className="text-xl font-medium text-gray-600">{t.pricing.proPeriod}</span>
               </div>
               <ul className="mt-4 mb-8 flex-1 text-left text-base text-gray-700 w-full space-y-2">
                 {t.pricing.proDesc.map((desc, idx) => (
@@ -386,45 +392,48 @@ function MarketingLanding({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full block bg-blue-700 text-white font-bold rounded-full px-6 py-3 mt-auto hover:bg-blue-800 transition shadow-lg"
-              >{t.pricing.proBtn}</a>
+              >
+                {t.pricing.proBtn}
+              </a>
             </div>
           </div>
         </section>
-        {/* Footer */}
         <footer className="bg-blue-600 text-white text-center py-6 px-4 mt-auto">
-          <div className="font-medium">
-            {t.footer}
-          </div>
+          <div className="font-medium">{t.footer}</div>
         </footer>
       </main>
     </>
   );
 }
 
-// --------- MAIN PAGE: No Auth, No Loading, Only Landing ---------
-function HomeContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const lang = langFromSearchParams(searchParams);
-
-  const handleSwitchLang = useCallback(() => {
-    const next = lang === "en" ? "zh" : "en";
-    router.push(`/?lang=${next}`);
-  }, [router, lang]);
-
-  return <MarketingLanding lang={lang} handleSwitchLang={handleSwitchLang} />;
-}
-
 export default function Home() {
+  const [lang, setLang] = useState<"en" | "zh">("en");
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("ui-lang");
+    setLang(stored === "zh" ? "zh" : "en");
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setLoggedIn(!!session?.user);
+    });
+  }, []);
+
+  const handleToggleLang = useCallback(() => {
+    setLang((prev) => {
+      const next = prev === "en" ? "zh" : "en";
+      localStorage.setItem("ui-lang", next);
+      return next;
+    });
+  }, []);
+
+  const copy = lang === "zh" ? TEXT_ZH : TEXT_EN;
+
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 via-white to-blue-100 text-gray-600">
-          Loading...
-        </div>
-      }
-    >
-      <HomeContent />
-    </Suspense>
+    <MarketingLanding
+      copy={copy}
+      lang={lang}
+      onToggleLang={handleToggleLang}
+      loggedIn={loggedIn}
+    />
   );
 }
