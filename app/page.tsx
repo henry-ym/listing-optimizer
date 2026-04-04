@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { supabase } from "./lib/supabase";
 
 // -----------------------------------------
@@ -483,218 +484,251 @@ function ListingGenerator({
     );
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50">
-      {/* Header Bar Showing Email + Logout */}
-      <div className="fixed top-0 left-0 w-full z-40 bg-blue-600 text-white px-6 py-3 flex items-center justify-between shadow">
-        <span className="font-semibold text-base truncate">Logged in as {user.email || "User"}</span>
-        <button
-          className="ml-3 px-4 py-1 text-sm font-medium rounded bg-white text-blue-700 hover:bg-blue-100 border transition"
-          onClick={() => void onLogout()}
-        >
-          Log out
-        </button>
-      </div>
-      <div className="bg-white px-10 py-16 rounded-3xl shadow-xl flex flex-col items-center w-full max-w-xl mt-16">
-
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-4 text-center">
-          AI Listing Optimizer
-        </h1>
-        <p className="text-lg text-gray-600 mb-8 text-center">
-          Generate optimized product listings in seconds
-        </p>
-
-        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-6 bg-gray-50 px-8 py-8 rounded-2xl shadow border">
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2" htmlFor="productName">
-              Product Name
-            </label>
-            <input
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded focus:outline-none"
-              id="productName"
-              type="text"
-              value={productName}
-              onChange={e => setProductName(e.target.value)}
-              required
-              placeholder="Your product name"
-            />
-          </div>
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2" htmlFor="keyFeatures">
-              Key Features
-            </label>
-            <textarea
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded focus:outline-none"
-              id="keyFeatures"
-              value={keyFeatures}
-              onChange={e => setKeyFeatures(e.target.value)}
-              required
-              rows={3}
-              placeholder="Comma separated or bulleted features"
-            ></textarea>
-          </div>
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2" htmlFor="targetMarket">
-              Target Market
-            </label>
-            <input
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded focus:outline-none"
-              id="targetMarket"
-              type="text"
-              value={targetMarket}
-              onChange={e => setTargetMarket(e.target.value)}
-              required
-              placeholder="Describe your market/audience"
-            />
-          </div>
-          <button
-            type="submit"
-            className={`w-full flex justify-center items-center px-6 py-3 text-lg font-bold text-white rounded ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"} transition focus:outline-none`}
-            disabled={loading}
+    <>
+      {/* New Navigation Bar (sticky, white background, subtle border) */}
+      <nav
+        className="sticky top-0 left-0 w-full z-50 bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-8 py-3"
+        style={{ minHeight: 64 }}
+      >
+        {/* Left - Logo/Text */}
+        <div>
+          <Link href="/" className="text-2xl font-extrabold text-blue-600 tracking-tight select-none">
+            AI Listing Optimizer
+          </Link>
+        </div>
+        {/* Center - Links */}
+        <div className="flex gap-4">
+          <Link
+            href="/"
+            className="px-3 py-1 rounded font-semibold text-gray-800 hover:bg-blue-50 transition text-base"
           >
-            {loading && (
-              <svg
-                className="animate-spin mr-2 h-5 w-5 text-white"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                ></path>
-              </svg>
-            )}
-            {loading ? "Generating..." : "Generate"}
+            Generator
+          </Link>
+          <Link
+            href="/history"
+            className="px-3 py-1 rounded font-semibold text-gray-800 hover:bg-blue-50 transition text-base"
+          >
+            History
+          </Link>
+        </div>
+        {/* Right - User Email + Logout */}
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-sm font-medium text-gray-600 truncate max-w-[180px]" title={user.email || ""}>
+            {user.email || "User"}
+          </span>
+          <button
+            className="px-4 py-1 text-sm font-semibold rounded bg-blue-600 text-white hover:bg-blue-700 border border-blue-600 transition"
+            onClick={() => void onLogout()}
+            type="button"
+          >
+            Log out
           </button>
-        </form>
+        </div>
+      </nav>
+      {/* Content */}
+      <main className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="bg-white px-10 py-16 rounded-3xl shadow-xl flex flex-col items-center w-full max-w-xl mt-10">
 
-        {(results["en"] || error) && (
-          <div className="mt-8 w-full">
-            <div className="flex mb-4 border-b">
-              {tabs.map(tab => (
-                <button
-                  key={tab.value}
-                  className={`px-4 py-2 text-sm font-semibold rounded-t focus:outline-none transition
-                   ${lang === tab.value
-                  ? "bg-white border-x border-t border-b-0 border-gray-200 text-blue-600"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"}
-                  `}
-                  onClick={() => setLang(tab.value)}
-                  disabled={loadingLang === tab.value}
-                  type="button"
-                  aria-selected={lang === tab.value}
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-4 text-center">
+            AI Listing Optimizer
+          </h1>
+          <p className="text-lg text-gray-600 mb-8 text-center">
+            Generate optimized product listings in seconds
+          </p>
+
+          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-6 bg-gray-50 px-8 py-8 rounded-2xl shadow border">
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2" htmlFor="productName">
+                Product Name
+              </label>
+              <input
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded focus:outline-none"
+                id="productName"
+                type="text"
+                value={productName}
+                onChange={e => setProductName(e.target.value)}
+                required
+                placeholder="Your product name"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2" htmlFor="keyFeatures">
+                Key Features
+              </label>
+              <textarea
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded focus:outline-none"
+                id="keyFeatures"
+                value={keyFeatures}
+                onChange={e => setKeyFeatures(e.target.value)}
+                required
+                rows={3}
+                placeholder="Comma separated or bulleted features"
+              ></textarea>
+            </div>
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2" htmlFor="targetMarket">
+                Target Market
+              </label>
+              <input
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded focus:outline-none"
+                id="targetMarket"
+                type="text"
+                value={targetMarket}
+                onChange={e => setTargetMarket(e.target.value)}
+                required
+                placeholder="Describe your market/audience"
+              />
+            </div>
+            <button
+              type="submit"
+              className={`w-full flex justify-center items-center px-6 py-3 text-lg font-bold text-white rounded ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"} transition focus:outline-none`}
+              disabled={loading}
+            >
+              {loading && (
+                <svg
+                  className="animate-spin mr-2 h-5 w-5 text-white"
+                  viewBox="0 0 24 24"
+                  fill="none"
                 >
-                  {tab.label}
-                  {loadingLang === tab.value && (
-                    <svg className="animate-spin ml-2 h-4 w-4 text-gray-400 inline" viewBox="0 0 24 24" fill="none">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  ></path>
+                </svg>
+              )}
+              {loading ? "Generating..." : "Generate"}
+            </button>
+          </form>
+
+          {(results["en"] || error) && (
+            <div className="mt-8 w-full">
+              <div className="flex mb-4 border-b">
+                {tabs.map(tab => (
+                  <button
+                    key={tab.value}
+                    className={`px-4 py-2 text-sm font-semibold rounded-t focus:outline-none transition
+                     ${lang === tab.value
+                    ? "bg-white border-x border-t border-b-0 border-gray-200 text-blue-600"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"}
+                    `}
+                    onClick={() => setLang(tab.value)}
+                    disabled={loadingLang === tab.value}
+                    type="button"
+                    aria-selected={lang === tab.value}
+                  >
+                    {tab.label}
+                    {loadingLang === tab.value && (
+                      <svg className="animate-spin ml-2 h-4 w-4 text-gray-400 inline" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="w-full">
+                {loadingLang ? (
+                  <div className="text-gray-500 text-center p-6">
+                    <svg className="animate-spin inline mr-2 h-5 w-5 text-gray-400" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
                     </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-            <div className="w-full">
-              {loadingLang ? (
-                <div className="text-gray-500 text-center p-6">
-                  <svg className="animate-spin inline mr-2 h-5 w-5 text-gray-400" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                  </svg>
-                  Generating...
-                </div>
-              ) : isDailyLimitError ? (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-md p-4 flex flex-col items-center">
-                  <span>
-                    You’ve reached your daily limit for free generations.
-                    <span className="block mt-1">
-                      To continue, please{" "}
-                      <a
-                        href={UPGRADE_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline text-blue-700 font-medium"
-                      >
-                        upgrade your plan
-                      </a>
-                      .
+                    Generating...
+                  </div>
+                ) : isDailyLimitError ? (
+                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-md p-4 flex flex-col items-center">
+                    <span>
+                      You’ve reached your daily limit for free generations.
+                      <span className="block mt-1">
+                        To continue, please{" "}
+                        <a
+                          href={UPGRADE_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline text-blue-700 font-medium"
+                        >
+                          upgrade your plan
+                        </a>
+                        .
+                      </span>
                     </span>
-                  </span>
-                  <button
-                    className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded transition"
-                    onClick={() => window.open(UPGRADE_URL, "_blank", "noopener,noreferrer")}
-                    type="button"
-                  >
-                    Upgrade
-                  </button>
-                </div>
-              ) : error ? (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-md p-4">{error}</div>
-              ) : (!parsed || !parsed.title) ? (
-                <div className="text-gray-400 text-center p-6">No result yet.</div>
-              ) : (
-                <div>
-                  <CardSection
-                    title={parsed.labels.title}
-                    canCopy
-                    onCopy={() => handleCopy(parsed?.title || "", "title")}
-                  >
-                    <div className="text-xl font-bold">
-                      {parsed.title}
-                    </div>
-                    {copyStatus.title && <span className="text-xs text-green-500 ml-2">{parsed.labels.copy}!</span>}
-                  </CardSection>
-                  <CardSection
-                    title={parsed.labels.desc}
-                    canCopy
-                    onCopy={() => handleCopy(parsed?.descParagraphs?.join("\n\n") || "", "desc")}
-                  >
-                    {(parsed?.descParagraphs || []).map((p, i) => (
-                      <p className="mb-2 last:mb-0 text-gray-700" key={i}>{p}</p>
-                    ))}
-                    {copyStatus.desc && <span className="text-xs text-green-500 ml-2">{parsed.labels.copy}!</span>}
-                  </CardSection>
-                  <CardSection
-                    title={parsed.labels.bullets}
-                    canCopy
-                    onCopy={() => handleCopy((parsed?.bulletItems || []).join("\n"), "bullets")}
-                  >
-                    <ul className="list-disc pl-5 space-y-1">
-                      {(parsed?.bulletItems || []).map((item, i) => (
-                        <li key={i}>{item}</li>
+                    <button
+                      className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded transition"
+                      onClick={() => window.open(UPGRADE_URL, "_blank", "noopener,noreferrer")}
+                      type="button"
+                    >
+                      Upgrade
+                    </button>
+                  </div>
+                ) : error ? (
+                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-md p-4">{error}</div>
+                ) : (!parsed || !parsed.title) ? (
+                  <div className="text-gray-400 text-center p-6">No result yet.</div>
+                ) : (
+                  <div>
+                    <CardSection
+                      title={parsed.labels.title}
+                      canCopy
+                      onCopy={() => handleCopy(parsed?.title || "", "title")}
+                    >
+                      <div className="text-xl font-bold">
+                        {parsed.title}
+                      </div>
+                      {copyStatus.title && <span className="text-xs text-green-500 ml-2">{parsed.labels.copy}!</span>}
+                    </CardSection>
+                    <CardSection
+                      title={parsed.labels.desc}
+                      canCopy
+                      onCopy={() => handleCopy(parsed?.descParagraphs?.join("\n\n") || "", "desc")}
+                    >
+                      {(parsed?.descParagraphs || []).map((p, i) => (
+                        <p className="mb-2 last:mb-0 text-gray-700" key={i}>{p}</p>
                       ))}
-                    </ul>
-                    {copyStatus.bullets && <span className="text-xs text-green-500 ml-2">{parsed.labels.copy}!</span>}
-                  </CardSection>
-                  <CardSection
-                    title={parsed.labels.keywords}
-                    canCopy
-                    onCopy={() => handleCopy((parsed?.keywordList || []).join(", "), "keywords")}
-                  >
-                    <div className="flex flex-wrap gap-2">
-                      {(parsed?.keywordList || []).map((k, i) => (
-                        <span key={i} className="inline-block px-2 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded text-xs">
-                          {k}
-                        </span>
-                      ))}
-                    </div>
-                    {copyStatus.keywords && <span className="text-xs text-green-500 ml-2">{parsed.labels.copy}!</span>}
-                  </CardSection>
-                </div>
-              )}
+                      {copyStatus.desc && <span className="text-xs text-green-500 ml-2">{parsed.labels.copy}!</span>}
+                    </CardSection>
+                    <CardSection
+                      title={parsed.labels.bullets}
+                      canCopy
+                      onCopy={() => handleCopy((parsed?.bulletItems || []).join("\n"), "bullets")}
+                    >
+                      <ul className="list-disc pl-5 space-y-1">
+                        {(parsed?.bulletItems || []).map((item, i) => (
+                          <li key={i}>{item}</li>
+                        ))}
+                      </ul>
+                      {copyStatus.bullets && <span className="text-xs text-green-500 ml-2">{parsed.labels.copy}!</span>}
+                    </CardSection>
+                    <CardSection
+                      title={parsed.labels.keywords}
+                      canCopy
+                      onCopy={() => handleCopy((parsed?.keywordList || []).join(", "), "keywords")}
+                    >
+                      <div className="flex flex-wrap gap-2">
+                        {(parsed?.keywordList || []).map((k, i) => (
+                          <span key={i} className="inline-block px-2 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded text-xs">
+                            {k}
+                          </span>
+                        ))}
+                      </div>
+                      {copyStatus.keywords && <span className="text-xs text-green-500 ml-2">{parsed.labels.copy}!</span>}
+                    </CardSection>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    </main>
+          )}
+        </div>
+      </main>
+    </>
   );
 }
 
