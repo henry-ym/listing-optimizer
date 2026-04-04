@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "../lib/supabase";
 
 export default function AuthPage() {
@@ -56,11 +57,14 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          {mode === "login" ? "Login" : "Sign Up"}
-        </h1>
-        <form onSubmit={handleAuth} className="flex flex-col gap-4">
+      <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md flex flex-col gap-6">
+        <div>
+          <h2 className="text-center text-3xl font-extrabold mb-2 text-blue-700">AI Listing Optimizer</h2>
+          <h1 className="text-xl font-bold mb-6 text-center text-gray-800">
+            {mode === "login" ? "Login" : "Sign Up"}
+          </h1>
+        </div>
+        <form onSubmit={handleAuth} className="flex flex-col gap-5">
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium">Email</span>
             <input
@@ -68,7 +72,7 @@ export default function AuthPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
               disabled={loading}
               autoComplete="email"
             />
@@ -80,7 +84,7 @@ export default function AuthPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
               disabled={loading}
               autoComplete={
                 mode === "signup" ? "new-password" : "current-password"
@@ -92,7 +96,7 @@ export default function AuthPage() {
           )}
           <button
             type="submit"
-            className="bg-blue-600 text-white rounded py-2 font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+            className="bg-blue-600 text-white rounded-lg py-3 w-full font-semibold hover:bg-blue-700 transition disabled:opacity-50"
             disabled={loading}
           >
             {loading
@@ -104,7 +108,7 @@ export default function AuthPage() {
               : "Sign Up"}
           </button>
         </form>
-        <div className="text-center mt-6">
+        <div className="text-center mt-2">
           <button
             type="button"
             className="text-blue-600 hover:underline font-medium text-sm"
@@ -118,6 +122,14 @@ export default function AuthPage() {
               ? "Don't have an account? Sign up"
               : "Already have an account? Log in"}
           </button>
+        </div>
+        <div className="mt-6 text-center">
+          <Link
+            href="/"
+            className="text-gray-500 hover:text-blue-600 underline font-medium text-sm"
+          >
+            &larr; Back to home
+          </Link>
         </div>
       </div>
     </div>
