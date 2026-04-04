@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
 
@@ -24,6 +24,7 @@ const UI = {
     fillAll: "Please fill in all fields",
     error: "Request failed",
     allCopy: "Copy All",
+    resultHeading: "Generated listing",
     titleCard: "Title",
     descCard: "Description",
     bulletCard: "Bullet Points",
@@ -52,6 +53,7 @@ const UI = {
     fillAll: "请填写完整信息",
     error: "请求失败",
     allCopy: "复制全部",
+    resultHeading: "生成结果",
     titleCard: "标题",
     descCard: "描述",
     bulletCard: "要点",
@@ -65,36 +67,6 @@ const UI = {
 
 // Generation limit settings
 const GEN_LIMIT = 5;
-
-function parseListing(listing: string) {
-  // Robustly split the AI result into sections
-  const result: { title?: string; description?: string; bullets?: string[]; keywords?: string[] } = {};
-  if (!listing) return result;
-
-  // [\s\S] for multiline (no /s dotAll — ES2017 target)
-  const titleMatch = listing.match(/Title\s*:\s*([\s\S]+?)\n(?:Description:|$)/i);
-  const descMatch = listing.match(
-    /Description\s*:\s*([\s\S]+?)\n(?:Bullet Points:|Keywords:|$)/i
-  );
-  const bulletsMatch = listing.match(
-    /Bullet Points\s*:\s*([\s\S]+?)\n(?:Keywords:|$)/i
-  );
-  const keywordsMatch = listing.match(/Keywords\s*:\s*([\s\S]+)$/i);
-
-  result.title = titleMatch ? titleMatch[1].trim() : "";
-  result.description = descMatch ? descMatch[1].trim() : "";
-  if (bulletsMatch) {
-    // Try to split by lines starting with • or dash
-    result.bullets = bulletsMatch[1]
-      .split(/\n/)
-      .map(l => l.replace(/^•\s*/, "").replace(/^- /, "").trim())
-      .filter(Boolean);
-  }
-  if (keywordsMatch) {
-    result.keywords = keywordsMatch[1].split(/,|\n/).map(s => s.trim()).filter(Boolean);
-  }
-  return result;
-}
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -172,9 +144,6 @@ export default function Dashboard() {
       setUsage(cnt);
     }
   }, [result, user]);
-
-  // Must run before any conditional return (Rules of Hooks)
-  const parsedResult = useMemo(() => parseListing(result), [result]);
 
   const langs = [
     { code: "en", label: "English" },
@@ -382,95 +351,21 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-              {/* Parsed Result */}
-              <div className="flex flex-col gap-5">
-                {/* Title card */}
-                {(parsedResult.title || "").length > 0 && (
-                  <div className="bg-gray-50 rounded-lg border shadow-sm p-4 flex flex-col gap-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-semibold text-blue-800">{UI[uiLang].titleCard}</h3>
-                      <button
-                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
-                        onClick={() => handleCopy(parsedResult.title!, "title")}
-                      >
-                        {copied.title ? UI[uiLang].copied : UI[uiLang].copy}
-                      </button>
-                    </div>
-                    <div className="whitespace-pre-wrap text-base text-gray-800">
-                      {parsedResult.title}
-                    </div>
-                  </div>
-                )}
-                {/* Description card */}
-                {(parsedResult.description || "").length > 0 && (
-                  <div className="bg-gray-50 rounded-lg border shadow-sm p-4 flex flex-col gap-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-semibold text-blue-800">{UI[uiLang].descCard}</h3>
-                      <button
-                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
-                        onClick={() => handleCopy(parsedResult.description!, "desc")}
-                      >
-                        {copied.desc ? UI[uiLang].copied : UI[uiLang].copy}
-                      </button>
-                    </div>
-                    <div className="whitespace-pre-wrap text-base text-gray-800">
-                      {parsedResult.description}
-                    </div>
-                  </div>
-                )}
-                {/* Bullet points card */}
-                {(parsedResult.bullets && parsedResult.bullets.length > 0) && (
-                  <div className="bg-gray-50 rounded-lg border shadow-sm p-4 flex flex-col gap-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-semibold text-blue-800">{UI[uiLang].bulletCard}</h3>
-                      <button
-                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
-                        onClick={() => handleCopy(parsedResult.bullets!.join("\n"), "bullets")}
-                      >
-                        {copied.bullets ? UI[uiLang].copied : UI[uiLang].copy}
-                      </button>
-                    </div>
-                    <ul className="list-disc list-inside text-base text-gray-800 ml-2">
-                      {parsedResult.bullets!.map((b, i) => (
-                        <li key={i}>{b}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {/* Keywords card */}
-                {(parsedResult.keywords && parsedResult.keywords.length > 0) && (
-                  <div className="bg-gray-50 rounded-lg border shadow-sm p-4 flex flex-col gap-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-semibold text-blue-800">{UI[uiLang].keywordCard}</h3>
-                      <button
-                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
-                        onClick={() => handleCopy(parsedResult.keywords!.join(", "), "keywords")}
-                      >
-                        {copied.keywords ? UI[uiLang].copied : UI[uiLang].copy}
-                      </button>
-                    </div>
-                    <div className="text-base text-gray-800 whitespace-pre-wrap break-words">
-                      {parsedResult.keywords!.join(", ")}
-                    </div>
-                  </div>
-                )}
-                {/* Fallback: copy all raw */}
-                {!parsedResult.title && !parsedResult.description &&
-                  !(parsedResult.bullets && parsedResult.bullets.length > 0) &&
-                  !(parsedResult.keywords && parsedResult.keywords.length > 0) && (
-                    <div className="bg-gray-50 rounded-lg border shadow-sm p-4 flex flex-col gap-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-blue-800">{UI[uiLang].allCopy}</h3>
-                        <button
-                          className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
-                          onClick={() => handleCopy(result, "all")}
-                        >
-                          {copied.all ? UI[uiLang].copied : UI[uiLang].copy}
-                        </button>
-                      </div>
-                      <div className="whitespace-pre-wrap text-base text-gray-800">{result}</div>
-                    </div>
-                )}
+              {/* Full AI response (raw text) */}
+              <div className="bg-gray-50 rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <h3 className="font-semibold text-blue-900 text-lg">{UI[uiLang].resultHeading}</h3>
+                  <button
+                    type="button"
+                    className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium shrink-0"
+                    onClick={() => handleCopy(result, "all")}
+                  >
+                    {copied.all ? UI[uiLang].copied : UI[uiLang].allCopy}
+                  </button>
+                </div>
+                <div className="whitespace-pre-wrap text-base text-gray-800 leading-relaxed font-mono border-t border-gray-200 pt-4 max-h-[min(70vh,560px)] overflow-y-auto">
+                  {result}
+                </div>
               </div>
             </div>
           )}
