@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       const { data: { user } } = await supabase.auth.getUser(token);
       if (user) {
         userId = user.id;
-        isPro = user.user_metadata?.is_pro === true;
+        isPro = user.user_metadata?.is_pro === true || user.app_metadata?.is_pro === true;
 
         if (!isPro) {
           const now = new Date();
