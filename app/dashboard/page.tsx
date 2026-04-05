@@ -200,9 +200,19 @@ export default function Dashboard() {
     setError("");
     setResult("");
     try {
+      let token = "";
+      try {
+        const session = await supabase.auth.getSession();
+        token = session.data.session?.access_token ?? "";
+      } catch {
+        /* proceed without token */
+      }
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + (token || ""),
+        },
         body: JSON.stringify({ productName, keyFeatures, targetMarket, lang: activeLang }),
       });
       const data = await res.json();
