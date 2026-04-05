@@ -210,6 +210,22 @@ export default function Dashboard() {
         setError(data.error);
       } else {
         setResult(data.listing || UI[uiLang].error);
+        const listing = data.listing;
+        if (listing && user?.id) {
+          supabase
+            .from("generations")
+            .insert({
+              user_id: user.id,
+              product_name: productName,
+              input_data: { keyFeatures, targetMarket },
+              output_data: listing,
+              lang: activeLang,
+            })
+            .then(
+              () => {},
+              () => {}
+            );
+        }
       }
     } catch (err: any) {
       setError(UI[uiLang].error + ": " + (err.message || "Unknown error"));
