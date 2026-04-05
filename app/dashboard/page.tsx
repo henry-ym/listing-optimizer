@@ -20,7 +20,6 @@ const UI = {
     history: "History",
     logout: "Log out",
     language: "中文",
-    usage: (used: number, max: number) => `${used}/${max} free generations today`,
     fillAll: "Please fill in all fields",
     error: "Request failed",
     allCopy: "Copy All",
@@ -50,7 +49,6 @@ const UI = {
     history: "历史记录",
     logout: "退出登录",
     language: "EN",
-    usage: (used: number, max: number) => `今日免费可用：${used}/${max}次`,
     fillAll: "请填写完整信息",
     error: "请求失败",
     allCopy: "复制全部",
@@ -66,9 +64,6 @@ const UI = {
     langToggle: "中文/EN",
   },
 };
-
-// Generation limit settings
-const GEN_LIMIT = 5;
 
 /** Remove ** markdown from display */
 function stripMarkdownBold(s: string): string {
@@ -98,7 +93,6 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [activeLang, setActiveLang] = useState("en");
   const [uiLang, setUiLang] = useState<"en" | "zh">("en");
-  const [usage, setUsage] = useState(0);
   const [copied, setCopied] = useState<{ [k: string]: boolean }>({});
 
   const router = useRouter();
@@ -143,33 +137,6 @@ export default function Dashboard() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  // Fetch usage counter
-  useEffect(() => {
-    // Should fetch count for today from backend in prod. Here a placeholder:
-    async function fetchCount() {
-      if (!user) return;
-      // Placeholder: count stored in localStorage by user ID for today.
-      const date = new Date().toISOString().slice(0, 10);
-      const key = `usage-${user.id}-${date}`;
-      const cnt = Number(localStorage.getItem(key)) || 0;
-      setUsage(cnt);
-    }
-    fetchCount();
-  }, [user, result]);
-
-  // Increment usage on successful generation
-  useEffect(() => {
-    if (!result || !user) return;
-    const date = new Date().toISOString().slice(0, 10);
-    const key = `usage-${user.id}-${date}`;
-    let cnt = Number(localStorage.getItem(key)) || 0;
-    if (cnt < GEN_LIMIT) {
-      cnt += 1;
-      localStorage.setItem(key, String(cnt));
-      setUsage(cnt);
-    }
-  }, [result, user]);
-
   const langs = [
     { code: "en", label: "English" },
     { code: "zh", label: "中文" },
@@ -192,10 +159,6 @@ export default function Dashboard() {
       setError(UI[uiLang].fillAll);
       return;
     }
-    if (usage >= GEN_LIMIT) {
-      setError(UI[uiLang].usage(usage, GEN_LIMIT));
-      return;
-    }
     setGenerating(true);
     setError("");
     setResult("");
@@ -216,6 +179,12 @@ export default function Dashboard() {
         body: JSON.stringify({ productName, keyFeatures, targetMarket, lang: activeLang }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        setError(
+          typeof data?.error === "string" ? data.error : UI[uiLang].error
+        );
+        return;
+      }
       if (data.error) {
         setError(data.error);
       } else {
@@ -337,12 +306,6 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* Usage counter */}
-      <div className="flex justify-center bg-transparent text-sm text-gray-500 mt-2 mb-4">
-        <div className="px-3 py-1 rounded bg-gray-100 border border-gray-200">
-          {UI[uiLang].usage(usage, GEN_LIMIT)}
-        </div>
-      </div>
       {/* Main card section */}
       <main className="flex-grow flex flex-col items-center px-4">
         <div className="w-full max-w-2xl mx-auto mt-6 p-8 bg-white rounded-2xl shadow-lg border flex flex-col gap-6">
@@ -396,9 +359,9 @@ export default function Dashboard() {
             </div>
             <button
               type="submit"
-              disabled={generating || usage >= GEN_LIMIT}
+              disabled={generating}
               className={`w-full text-lg font-semibold py-3 rounded-lg transition ${
-                generating || usage >= GEN_LIMIT
+                generating
                   ? "bg-gray-400 cursor-not-allowed text-white"
                   : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
